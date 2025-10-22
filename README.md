@@ -1,3 +1,4 @@
+--WORK IN PROGRESS-
 This fork aims to update the original HumanNeRF implementation to be compatible with the latest versions of PyTorch and CUDA.
 The primary goals of this project are:
 
