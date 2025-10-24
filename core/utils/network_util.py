@@ -64,8 +64,9 @@ class RodriguesModule(nn.Module):
             Returns
                 rmtx: Tensor (B, 3, 3)
         '''
-        theta = torch.sqrt(1e-5 + torch.sum(rvec ** 2, dim=1))
-        rvec = rvec / theta[:, None]
+        theta = torch.norm(rvec, dim=1, keepdim=True).clamp_min(1e-5)
+        rvec = rvec / theta
+        theta = theta.squeeze(1)
         costh = torch.cos(theta)
         sinth = torch.sin(theta)
         return torch.stack((
@@ -145,7 +146,7 @@ class MotionBasisComputer(nn.Module):
                                         local_Gs[:, i, :, :])
 
         dst_gtfms = dst_gtfms.view(-1, 4, 4)
-        inv_dst_gtfms = torch.inverse(dst_gtfms)
+        inv_dst_gtfms = torch.linalg.inv(dst_gtfms)
         
         cnl_gtfms = cnl_gtfms.view(-1, 4, 4)
         f_mtx = torch.matmul(cnl_gtfms, inv_dst_gtfms)
@@ -217,84 +218,37 @@ def xaviermultiplier(m, gain):
         return None
 
     return std
-
-
+#Module alrady exits but they added std calculation
 def xavier_uniform_(m, gain):
-    """ Set module weight values with a uniform distribution.
-
-        Args:
-            m (torch.nn.Module)
-            gain (float)
-    """ 
     std = xaviermultiplier(m, gain)
-    m.weight.data.uniform_(-(std * math.sqrt(3.0)), std * math.sqrt(3.0))
-
+    with torch.no_grad():
+        m.weight.uniform_(-(std * math.sqrt(3.0)), std * math.sqrt(3.0))
 
 def initmod(m, gain=1.0, weightinitfunc=xavier_uniform_):
-    """ Initialized module weights.
-
-        Args:
-            m (torch.nn.Module)
-            gain (float)
-            weightinitfunc (function)
-    """ 
     validclasses = [nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d, 
                     nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d]
     if any([isinstance(m, x) for x in validclasses]):
         weightinitfunc(m, gain)
-        if hasattr(m, 'bias'):
-            m.bias.data.zero_()
+        if hasattr(m, 'bias') and m.bias is not None:
+            with torch.no_grad():
+                m.bias.zero_()
 
-    # blockwise initialization for transposed convs
-    if isinstance(m, nn.ConvTranspose2d):
-        # hardcoded for stride=2 for now
-        m.weight.data[:, :, 0::2, 1::2] = m.weight.data[:, :, 0::2, 0::2]
-        m.weight.data[:, :, 1::2, 0::2] = m.weight.data[:, :, 0::2, 0::2]
-        m.weight.data[:, :, 1::2, 1::2] = m.weight.data[:, :, 0::2, 0::2]
-
-    if isinstance(m, nn.ConvTranspose3d):
-        # hardcoded for stride=2 for now
-        m.weight.data[:, :, 0::2, 0::2, 1::2] = m.weight.data[:, :, 
-                                                              0::2, 0::2, 0::2]
-        m.weight.data[:, :, 0::2, 1::2, 0::2] = m.weight.data[:, :, 
-                                                              0::2, 0::2, 0::2]
-        m.weight.data[:, :, 0::2, 1::2, 1::2] = m.weight.data[:, :, 
-                                                              0::2, 0::2, 0::2]
-        m.weight.data[:, :, 1::2, 0::2, 0::2] = m.weight.data[:, :, 
-                                                              0::2, 0::2, 0::2]
-        m.weight.data[:, :, 1::2, 0::2, 1::2] = m.weight.data[:, :, 
-                                                              0::2, 0::2, 0::2]
-        m.weight.data[:, :, 1::2, 1::2, 0::2] = m.weight.data[:, :, 
-                                                              0::2, 0::2, 0::2]
-        m.weight.data[:, :, 1::2, 1::2, 1::2] = m.weight.data[:, :, 
-                                                              0::2, 0::2, 0::2]
-
-
-def initseq(s):
-    """ Initialized weights of all modules in a module sequence.
-
-        Args:
-            s (torch.nn.Sequential)
-    """ 
+def initseq(s: nn.Sequential):
+    """Initialized weights of all modules in a module sequence."""
     for a, b in zip(s[:-1], s[1:]):
         if isinstance(b, nn.ReLU):
             initmod(a, nn.init.calculate_gain('relu'))
         elif isinstance(b, nn.LeakyReLU):
             initmod(a, nn.init.calculate_gain('leaky_relu', b.negative_slope))
-        elif isinstance(b, nn.Sigmoid):
-            initmod(a)
-        elif isinstance(b, nn.Softplus):
+        elif isinstance(b, (nn.Sigmoid, nn.Softplus)):
             initmod(a)
         else:
             initmod(a)
-
     initmod(s[-1])
-
 
 ###############################################################################
 ## misc functions
 ###############################################################################
-
 
 def set_requires_grad(nets, requires_grad=False):
     if not isinstance(nets, list):
