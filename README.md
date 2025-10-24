@@ -1,10 +1,13 @@
-This fork aims to update the original HumanNeRF implementation to be compatible with the latest versions of PyTorch and CUDA.
-The primary goals of this project are:
+# HumanNeRF (Updated Fork)
 
-Migrating deprecated APIs to their modern PyTorch equivalents.
+This fork updates the original **HumanNeRF** implementation to ensure compatibility with modern **PyTorch** and **CUDA**.
 
-Ensuring support for recent CUDA toolkits to leverage current GPU hardware.
+## Status
+⚠️ Work in progress — APIs are being migrated and tested for stability.
 
-Improving overall compatibility with contemporary deep learning environments.
+## Goals
+- Ensure support for recent CUDA toolkits and current GPU hardware.  
+- Improve maintainability for research and experimentation in modern environments.
 
-This modernization effort is intended to make HumanNeRF easier to install, run, and extend in research projects without relying on outdated dependencies. Contributions and feedback are welcome.
+## Contributing
+Feedback and contributions are welcome.
