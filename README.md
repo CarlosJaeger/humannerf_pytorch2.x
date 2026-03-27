@@ -1,4 +1,7 @@
---WORK IN PROGRESS-
+
+
+
+DROPED Proyect , for now. focus has changed for Information Retrieval field 
 This fork aims to update the original HumanNeRF implementation to be compatible with the latest versions of PyTorch and CUDA.
 The primary goals of this project are:
 
